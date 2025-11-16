@@ -1,0 +1,192 @@
+.winner-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.winner-animation {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.confetti {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffd700;
+  animation: confetti-fall 3s linear infinite;
+}
+
+.confetti:nth-child(1) {
+  left: 10%;
+  animation-delay: 0s;
+  background: #ff6b6b;
+}
+
+.confetti:nth-child(2) {
+  left: 30%;
+  animation-delay: 0.5s;
+  background: #4ecdc4;
+}
+
+.confetti:nth-child(3) {
+  left: 50%;
+  animation-delay: 1s;
+  background: #ffe66d;
+}
+
+.confetti:nth-child(4) {
+  left: 70%;
+  animation-delay: 1.5s;
+  background: #95e1d3;
+}
+
+.confetti:nth-child(5) {
+  left: 90%;
+  animation-delay: 2s;
+  background: #f38181;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.winner-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  z-index: 2;
+  position: relative;
+}
+
+.winner-header h1 {
+  color: white;
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.subtitle {
+  color: white;
+  font-size: 1.5rem;
+  opacity: 0.9;
+}
+
+.winner-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 100%;
+  z-index: 2;
+  position: relative;
+  animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.winner-image {
+  width: 100%;
+  height: 400px;
+  overflow: hidden;
+  background: #f0f0f0;
+}
+
+.winner-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.winner-content {
+  padding: 3rem;
+  text-align: center;
+}
+
+.winner-content h2 {
+  color: #333;
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.winner-content p {
+  color: #666;
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+
+.winner-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 3rem;
+  z-index: 2;
+  position: relative;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+  color: white;
+  font-size: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .winner-header h1 {
+    font-size: 2rem;
+  }
+  
+  .subtitle {
+    font-size: 1.2rem;
+  }
+  
+  .winner-image {
+    height: 300px;
+  }
+  
+  .winner-content {
+    padding: 2rem;
+  }
+  
+  .winner-content h2 {
+    font-size: 2rem;
+  }
+}
+
