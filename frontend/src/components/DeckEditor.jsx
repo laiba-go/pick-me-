@@ -8,7 +8,7 @@ function DeckEditor() {
   const navigate = useNavigate();
   const isEdit = !!id;
 
-  const [deck, setDeck] = useState({ title: '', description: '', privacy: 'private' });
+  const [deck, setDeck] = useState({ title: '', description: '' });
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
@@ -151,16 +151,6 @@ function DeckEditor() {
             placeholder="Enter deck description"
             rows="3"
           />
-        </div>
-        <div className="form-group">
-          <label>Privacy</label>
-          <select
-            value={deck.privacy}
-            onChange={(e) => handleDeckChange('privacy', e.target.value)}
-          >
-            <option value="private">Private</option>
-            <option value="public">Public</option>
-          </select>
         </div>
         <button className="btn btn-primary" onClick={handleSaveDeck} disabled={saving}>
           {saving ? 'Saving...' : 'Save Deck'}

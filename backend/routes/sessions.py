@@ -98,9 +98,11 @@ async def get_session_state(session_id: str, db=Depends(get_db)):
         
         remaining_cards = []
         if remaining_ids:
+            # Convert string UUIDs to UUID objects for PostgreSQL
+            uuid_list = [uuid.UUID(cid) if isinstance(cid, str) else cid for cid in remaining_ids]
             card_rows = await conn.fetch(
                 "SELECT * FROM cards WHERE id = ANY($1::uuid[])",
-                remaining_ids
+                uuid_list
             )
             for row in card_rows:
                 card = {k: v for k, v in row.items()}
@@ -117,135 +119,146 @@ async def get_session_state(session_id: str, db=Depends(get_db)):
 
 @router.post("/{session_id}/decision")
 async def record_decision(session_id: str, decision: DecisionCreate, db=Depends(get_db)):
-    if not decision.card_id or not decision.decision:
-        raise HTTPException(status_code=400, detail="card_id and decision are required")
-    
-    if decision.decision not in ["pass", "smash", "chosen"]:
-        raise HTTPException(status_code=400, detail="decision must be pass, smash, or chosen")
-    
-    async with db.acquire() as conn:
-        # Get current session
-        session_row = await conn.fetchrow("SELECT * FROM sessions WHERE id = $1", session_id)
-        if not session_row:
-            raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        if not decision.card_id or not decision.decision:
+            raise HTTPException(status_code=400, detail="card_id and decision are required")
         
-        session = dict(session_row)
-        if session["status"] == "finished":
-            raise HTTPException(status_code=400, detail="Session is already finished")
+        if decision.decision not in ["pass", "smash", "chosen"]:
+            raise HTTPException(status_code=400, detail="decision must be pass, smash, or chosen")
         
-        remaining_cards = session.get("remaining_cards", [])
-        passed_cards = session.get("passed_cards", [])
-        smashed_cards = session.get("smashed_cards", [])
-        
-        # Parse JSON fields if they are strings
-        if remaining_cards is None:
-            remaining_cards = []
-        elif isinstance(remaining_cards, str):
-            remaining_cards = json.loads(remaining_cards)
-        elif not isinstance(remaining_cards, list):
-            remaining_cards = []
+        async with db.acquire() as conn:
+            # Get current session
+            session_row = await conn.fetchrow("SELECT * FROM sessions WHERE id = $1", session_id)
+            if not session_row:
+                raise HTTPException(status_code=404, detail="Session not found")
             
-        if passed_cards is None:
-            passed_cards = []
-        elif isinstance(passed_cards, str):
-            passed_cards = json.loads(passed_cards)
-        elif not isinstance(passed_cards, list):
-            passed_cards = []
+            session = dict(session_row)
+            if session["status"] == "finished":
+                raise HTTPException(status_code=400, detail="Session is already finished")
             
-        if smashed_cards is None:
-            smashed_cards = []
-        elif isinstance(smashed_cards, str):
-            smashed_cards = json.loads(smashed_cards)
-        elif not isinstance(smashed_cards, list):
-            smashed_cards = []
-        
-        # In duel mode, only remove cards that are passed
-        # In swipe mode, remove all cards from remaining
-        if session["mode"] == "duel":
-            if decision.decision == "pass":
+            remaining_cards = session.get("remaining_cards", [])
+            passed_cards = session.get("passed_cards", [])
+            smashed_cards = session.get("smashed_cards", [])
+            
+            # Parse JSON fields if they are strings
+            if remaining_cards is None:
+                remaining_cards = []
+            elif isinstance(remaining_cards, str):
+                remaining_cards = json.loads(remaining_cards)
+            elif not isinstance(remaining_cards, list):
+                remaining_cards = []
+                
+            if passed_cards is None:
+                passed_cards = []
+            elif isinstance(passed_cards, str):
+                passed_cards = json.loads(passed_cards)
+            elif not isinstance(passed_cards, list):
+                passed_cards = []
+                
+            if smashed_cards is None:
+                smashed_cards = []
+            elif isinstance(smashed_cards, str):
+                smashed_cards = json.loads(smashed_cards)
+            elif not isinstance(smashed_cards, list):
+                smashed_cards = []
+            
+            # In duel mode, remove card from remaining for any decision
+            # In swipe mode, remove all cards from remaining
+            if session["mode"] == "duel":
                 remaining_cards = [cid for cid in remaining_cards if cid != decision.card_id]
-                passed_cards.append(decision.card_id)
-            elif decision.decision in ["smash", "chosen"]:
-                if decision.card_id not in smashed_cards:
+                if decision.decision == "pass":
+                    passed_cards.append(decision.card_id)
+                elif decision.decision in ["smash", "chosen"]:
+                    if decision.card_id not in smashed_cards:
+                        smashed_cards.append(decision.card_id)
+            else:
+                # Swipe mode: remove card from remaining
+                remaining_cards = [cid for cid in remaining_cards if cid != decision.card_id]
+                if decision.decision == "pass":
+                    passed_cards.append(decision.card_id)
+                elif decision.decision in ["smash", "chosen"]:
                     smashed_cards.append(decision.card_id)
-        else:
-            # Swipe mode: remove card from remaining
-            remaining_cards = [cid for cid in remaining_cards if cid != decision.card_id]
-            if decision.decision == "pass":
-                passed_cards.append(decision.card_id)
-            elif decision.decision in ["smash", "chosen"]:
-                smashed_cards.append(decision.card_id)
-        
-        # Record vote
-        vote_id = str(uuid.uuid4())
-        await conn.execute(
-            "INSERT INTO votes (id, session_id, card_id, decision, round) VALUES ($1, $2, $3, $4, $5)",
-            vote_id, session_id, decision.card_id, decision.decision, decision.round
-        )
-        
-        # Check if session should finish or switch mode
-        status = session["status"]
-        
-        # Check if session should finish
-        if not remaining_cards and session["mode"] == "swipe":
-            if not smashed_cards:
-                status = "finished"
-            elif len(smashed_cards) == 1:
-                status = "finished"
-            # Don't auto-switch to duel mode, let user choose
-        elif not remaining_cards and session["mode"] == "duel":
-            # Duel mode finished
-            status = "finished"
-        
-        # Update session (always update, even if status changed)
-        await conn.execute(
-            "UPDATE sessions SET remaining_cards = $1, passed_cards = $2, smashed_cards = $3, status = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5",
-            json.dumps(remaining_cards), json.dumps(passed_cards), json.dumps(smashed_cards), status, session_id
-        )
-        
-        # Get updated session with full card details
-        updated_row = await conn.fetchrow("SELECT * FROM sessions WHERE id = $1", session_id)
-        updated_session = dict(updated_row)
-        
-        # Get remaining cards details
-        remaining_cards_list = []
-        if remaining_cards:
-            card_rows = await conn.fetch(
-                "SELECT * FROM cards WHERE id = ANY($1::uuid[])",
-                remaining_cards
+            
+            # Record vote
+            vote_id = str(uuid.uuid4())
+            await conn.execute(
+                "INSERT INTO votes (id, session_id, card_id, decision, round) VALUES ($1, $2, $3, $4, $5)",
+                vote_id, session_id, decision.card_id, decision.decision, decision.round
             )
-            for row in card_rows:
-                card = {k: v for k, v in row.items()}
-                if isinstance(card.get("metadata"), str):
-                    try:
-                        card["metadata"] = json.loads(card["metadata"])
-                    except:
-                        card["metadata"] = {}
-                remaining_cards_list.append(card)
-        
-        updated_session["remainingCards"] = remaining_cards_list
-        
-        # If status changed to finished, include winner info
-        if updated_session["status"] == "finished":
-            remaining = updated_session.get("remaining_cards", [])
-            if remaining is None:
-                remaining = []
-            elif isinstance(remaining, str):
-                remaining = json.loads(remaining)
-            elif not isinstance(remaining, list):
-                remaining = []
-            if len(remaining) == 1:
-                winner_row = await conn.fetchrow("SELECT * FROM cards WHERE id = $1", remaining[0])
-                if winner_row:
-                    winner = {k: v for k, v in winner_row.items()}
-                    if isinstance(winner.get("metadata"), str):
+            
+            # Check if session should finish or switch mode
+            status = session["status"]
+            
+            # Check if session should finish
+            if not remaining_cards and session["mode"] == "swipe":
+                if not smashed_cards:
+                    status = "finished"
+                elif len(smashed_cards) == 1:
+                    # Move winner to remaining_cards for proper winner detection
+                    remaining_cards = smashed_cards
+                    smashed_cards = []
+                    status = "finished"
+                # Don't auto-switch to duel mode, let user choose
+            elif not remaining_cards and session["mode"] == "duel":
+                # Duel mode finished
+                status = "finished"
+            
+            # Update session (always update, even if status changed)
+            await conn.execute(
+                "UPDATE sessions SET remaining_cards = $1, passed_cards = $2, smashed_cards = $3, status = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5",
+                json.dumps(remaining_cards), json.dumps(passed_cards), json.dumps(smashed_cards), status, session_id
+            )
+            
+            # Get updated session with full card details
+            updated_row = await conn.fetchrow("SELECT * FROM sessions WHERE id = $1", session_id)
+            updated_session = dict(updated_row)
+            
+            # Get remaining cards details
+            remaining_cards_list = []
+            if remaining_cards:
+                # Convert string UUIDs to UUID objects for PostgreSQL
+                uuid_list = [uuid.UUID(cid) if isinstance(cid, str) else cid for cid in remaining_cards]
+                card_rows = await conn.fetch(
+                    "SELECT * FROM cards WHERE id = ANY($1::uuid[])",
+                    uuid_list
+                )
+                for row in card_rows:
+                    card = {k: v for k, v in row.items()}
+                    if isinstance(card.get("metadata"), str):
                         try:
-                            winner["metadata"] = json.loads(winner["metadata"])
+                            card["metadata"] = json.loads(card["metadata"])
                         except:
-                            winner["metadata"] = {}
-                    updated_session["winner"] = winner
-        
-        return updated_session
+                            card["metadata"] = {}
+                    remaining_cards_list.append(card)
+            
+            updated_session["remainingCards"] = remaining_cards_list
+            
+            # If status changed to finished, include winner info
+            if updated_session["status"] == "finished":
+                remaining = updated_session.get("remaining_cards", [])
+                if remaining is None:
+                    remaining = []
+                elif isinstance(remaining, str):
+                    remaining = json.loads(remaining)
+                elif not isinstance(remaining, list):
+                    remaining = []
+                if len(remaining) == 1:
+                    winner_row = await conn.fetchrow("SELECT * FROM cards WHERE id = $1", remaining[0])
+                    if winner_row:
+                        winner = {k: v for k, v in winner_row.items()}
+                        if isinstance(winner.get("metadata"), str):
+                            try:
+                                winner["metadata"] = json.loads(winner["metadata"])
+                            except:
+                                winner["metadata"] = {}
+                        updated_session["winner"] = winner
+            
+            return updated_session
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in record_decision: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post("/{session_id}/duel")
@@ -267,10 +280,13 @@ async def get_duel_pair(session_id: str, db=Depends(get_db)):
         import random
         pair_ids = random.sample(remaining_cards, 2)
         
+        # Convert string UUIDs to UUID objects for PostgreSQL
+        uuid_list = [uuid.UUID(cid) if isinstance(cid, str) else cid for cid in pair_ids]
+        
         # Get full card details
         card_rows = await conn.fetch(
             "SELECT * FROM cards WHERE id = ANY($1::uuid[])",
-            pair_ids
+            uuid_list
         )
         cards = []
         for row in card_rows:

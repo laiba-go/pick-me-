@@ -156,6 +156,7 @@ async def update_card(card_id: str, card: CardUpdate, db=Depends(get_db)):
         
         updates.append("updated_at = CURRENT_TIMESTAMP")
         values.append(card_id)
+        param_count += 1
         
         query = f"UPDATE cards SET {', '.join(updates)} WHERE id = ${param_count} RETURNING *"
         row = await conn.fetchrow(query, *values)

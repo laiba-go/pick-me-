@@ -85,9 +85,6 @@ function DeckList() {
                 </div>
               </div>
               {deck.description && <p className="deck-description">{deck.description}</p>}
-              <div className="deck-footer">
-                <span className="deck-privacy">{deck.privacy}</span>
-              </div>
             </div>
           ))}
         </div>

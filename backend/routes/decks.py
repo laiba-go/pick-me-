@@ -10,14 +10,12 @@ router = APIRouter()
 class DeckCreate(BaseModel):
     title: str
     description: Optional[str] = None
-    privacy: str = "private"
     user_id: Optional[str] = None
 
 
 class DeckUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    privacy: Optional[str] = None
 
 
 async def get_db():
@@ -32,13 +30,12 @@ async def get_decks(user_id: Optional[str] = None, db=Depends(get_db)):
     async with db.acquire() as conn:
         if user_id:
             rows = await conn.fetch(
-                "SELECT * FROM decks WHERE user_id = $1 OR privacy = $2 ORDER BY created_at DESC",
-                user_id, "public"
+                "SELECT * FROM decks WHERE user_id = $1 ORDER BY created_at DESC",
+                user_id
             )
         else:
             rows = await conn.fetch(
-                "SELECT * FROM decks WHERE privacy = $1 ORDER BY created_at DESC",
-                "public"
+                "SELECT * FROM decks ORDER BY created_at DESC"
             )
         result = []
         for row in rows:
@@ -63,8 +60,8 @@ async def create_deck(deck: DeckCreate, db=Depends(get_db)):
     deck_id = str(uuid.uuid4())
     async with db.acquire() as conn:
         row = await conn.fetchrow(
-            "INSERT INTO decks (id, user_id, title, description, privacy) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-            deck_id, deck.user_id, deck.title, deck.description, deck.privacy
+            "INSERT INTO decks (id, user_id, title, description) VALUES ($1, $2, $3, $4) RETURNING *",
+            deck_id, deck.user_id, deck.title, deck.description
         )
         return dict(row)
 
@@ -90,16 +87,13 @@ async def update_deck(deck_id: str, deck: DeckUpdate, db=Depends(get_db)):
             updates.append(f"description = ${param_count}")
             values.append(deck.description)
             param_count += 1
-        if deck.privacy is not None:
-            updates.append(f"privacy = ${param_count}")
-            values.append(deck.privacy)
-            param_count += 1
         
         if not updates:
             return dict(existing)
         
         updates.append("updated_at = CURRENT_TIMESTAMP")
         values.append(deck_id)
+        param_count += 1
         
         query = f"UPDATE decks SET {', '.join(updates)} WHERE id = ${param_count} RETURNING *"
         row = await conn.fetchrow(query, *values)

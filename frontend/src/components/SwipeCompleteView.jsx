@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getSessionState } from '../api';
+import { getSessionState, startDuel, reswipeSession } from '../api';
 import './SwipeCompleteView.css';
 
 function SwipeCompleteView() {
@@ -18,7 +18,6 @@ function SwipeCompleteView() {
       const smashed = session.smashed_cards || [];
       
       setSmashedCards(Array.isArray(smashed) ? smashed : []);
-      setDeckId(session.deck_id);
     } catch (error) {
       console.error('Error loading session state:', error);
     } finally {

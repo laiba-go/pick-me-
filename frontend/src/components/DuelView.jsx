@@ -18,9 +18,11 @@ function DuelView() {
       const response = await getSessionState(sessionId);
       const session = response.data;
       
-      if (session.status === 'finished' || (session.remaining_cards && session.remaining_cards.length <= 1)) {
+      if (session.status === 'finished') {
         navigate(`/session/${sessionId}/winner`);
-      } else {
+      } else if (session.remaining_cards && session.remaining_cards.length <= 1) {
+        navigate(`/session/${sessionId}/winner`);
+      } else if (!session.remaining_cards || session.remaining_cards.length < 2) {
         alert('Not enough cards for duel. Please try again.');
         navigate('/');
       }

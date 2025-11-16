@@ -79,17 +79,4 @@
   line-height: 1.5;
 }
 
-.deck-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 1rem;
-  border-top: 1px solid #eee;
-}
-
-.deck-privacy {
-  font-size: 0.875rem;
-  color: #999;
-  text-transform: capitalize;
-}
 

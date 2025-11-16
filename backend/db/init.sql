@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS decks (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    privacy VARCHAR(20) DEFAULT 'private',
+    privacy VARCHAR(20) DEFAULT 'public',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

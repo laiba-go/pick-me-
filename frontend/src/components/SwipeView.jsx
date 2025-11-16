@@ -10,8 +10,6 @@ function SwipeView() {
   const [sessionId, setSessionId] = useState(null);
   const [currentCard, setCurrentCard] = useState(null);
   const [remainingCards, setRemainingCards] = useState([]);
-  const [smashedCards, setSmashedCards] = useState([]);
-  const [passedCards, setPassedCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   
@@ -26,12 +24,8 @@ function SwipeView() {
       const response = await getSessionState(sid);
       const session = response.data;
       const cards = session.remainingCards || [];
-      const smashed = session.smashed_cards || [];
-      const passed = session.passed_cards || [];
 
       setRemainingCards(cards);
-      setSmashedCards(Array.isArray(smashed) ? smashed : []);
-      setPassedCards(Array.isArray(passed) ? passed : []);
       
       if (cards.length > 0) {
         setCurrentCard(cards[0]);
@@ -71,7 +65,7 @@ function SwipeView() {
     initializeSession();
   }, [initializeSession]);
 
-  const handleDecision = async (decision) => {
+  const handleDecision = useCallback(async (decision) => {
     if (!currentCard || processing) return;
 
     try {
@@ -81,12 +75,8 @@ function SwipeView() {
       // Update state from response
       const session = response.data;
       const cards = session.remainingCards || [];
-      const smashed = session.smashed_cards || [];
-      const passed = session.passed_cards || [];
 
       setRemainingCards(cards);
-      setSmashedCards(Array.isArray(smashed) ? smashed : []);
-      setPassedCards(Array.isArray(passed) ? passed : []);
 
       if (cards.length > 0) {
         setCurrentCard(cards[0]);
@@ -101,7 +91,7 @@ function SwipeView() {
       setProcessing(false);
       setSwipeOffset({ x: 0, y: 0 });
     }
-  };
+  }, [currentCard, processing, sessionId, navigate]);
 
   // Swipe gesture handlers
   const handleTouchStart = (e) => {

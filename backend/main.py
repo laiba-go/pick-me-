@@ -21,13 +21,23 @@ async def lifespan(app: FastAPI):
     # Startup
     global db_pool, redis_client
     
+    # Get database connection parameters
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = int(os.getenv("DB_PORT", "5432"))
+    db_user = os.getenv("DB_USER", "pickme")
+    db_password = os.getenv("DB_PASSWORD", "pickme_password")
+    db_name = os.getenv("DB_NAME", "pickme_db")
+    
+    # Debug: print database connection info (without password)
+    print(f"Connecting to database: host={db_host}, port={db_port}, user={db_user}, database={db_name}")
+    
     # Create database pool
     db_pool = await asyncpg.create_pool(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", "5432")),
-        user=os.getenv("DB_USER", "pickme"),
-        password=os.getenv("DB_PASSWORD", "pickme_password"),
-        database=os.getenv("DB_NAME", "pickme_db"),
+        host=db_host,
+        port=db_port,
+        user=db_user,
+        password=db_password,
+        database=db_name,
         min_size=1,
         max_size=10,
     )
