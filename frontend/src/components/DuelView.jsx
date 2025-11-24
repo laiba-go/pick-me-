@@ -1,36 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getSessionState, getDuelPair, recordDecision, finishSession } from '../api';
+import { getSessionState, getDuelPair, recordDecision } from '../api';
 import './DuelView.css';
 
 function DuelView() {
-  const { id: sessionId } = useParams();
+  const { sessionId } = useParams();
   const navigate = useNavigate();
 
   const [card1, setCard1] = useState(null);
   const [card2, setCard2] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [round, setRound] = useState(2);
-
-  const checkSessionStatus = useCallback(async () => {
-    try {
-      const response = await getSessionState(sessionId);
-      const session = response.data;
-      
-      if (session.status === 'finished') {
-        navigate(`/session/${sessionId}/winner`);
-      } else if (session.remaining_cards && session.remaining_cards.length <= 1) {
-        navigate(`/session/${sessionId}/winner`);
-      } else if (!session.remaining_cards || session.remaining_cards.length < 2) {
-        alert('Not enough cards for duel. Please try again.');
-        navigate('/');
-      }
-    } catch (error) {
-      console.error('Error checking session:', error);
-      navigate('/');
-    }
-  }, [sessionId, navigate]);
+  const [round, setRound] = useState(1);
 
   const loadDuelPair = useCallback(async () => {
     try {
@@ -40,12 +21,19 @@ function DuelView() {
       setCard2(response.data.card2);
     } catch (error) {
       console.error('Error loading duel pair:', error);
-      // Check if session is finished
-      checkSessionStatus();
+      // если нет достаточно карт для батла
+      const stateResponse = await getSessionState(sessionId);
+      const session = stateResponse.data;
+      if (session.status === 'finished' || (session.smashedCards && session.smashedCards.length === 1)) {
+        navigate(`/session/${sessionId}/winner`);
+      } else {
+        alert('Not enough cards for duel. Please try again.');
+        navigate('/');
+      }
     } finally {
       setLoading(false);
     }
-  }, [sessionId, checkSessionStatus]);
+  }, [sessionId, navigate]);
 
   useEffect(() => {
     loadDuelPair();
@@ -56,25 +44,22 @@ function DuelView() {
 
     try {
       setProcessing(true);
-      
-      // Record decision for chosen card (smash) and other (pass)
+
+      // записываем решения
       await Promise.all([
         recordDecision(sessionId, chosenCard.id, 'smash', round),
         recordDecision(sessionId, otherCard.id, 'pass', round)
       ]);
 
-      // Check if we have a winner
+      // обновляем состояние сессии
       const stateResponse = await getSessionState(sessionId);
       const session = stateResponse.data;
-      const remaining = session.remaining_cards || [];
 
-      if (remaining.length <= 1) {
-        // Finish session
-        await finishSession(sessionId);
+      // если осталась одна карта — редирект на победителя
+      if (session.status === 'finished' || (session.smashedCards && session.smashedCards.length === 1)) {
         navigate(`/session/${sessionId}/winner`);
       } else {
-        // Load next pair
-        setRound(round + 1);
+        setRound(prev => prev + 1);
         await loadDuelPair();
       }
     } catch (error) {
@@ -114,14 +99,9 @@ function DuelView() {
             <h3>{card1.title}</h3>
             {card1.description && <p>{card1.description}</p>}
           </div>
-          <div className="card-overlay">
-            <span className="choice-label">Click to Choose</span>
-          </div>
         </div>
 
-        <div className="vs-divider">
-          <span>VS</span>
-        </div>
+        <div className="vs-divider"><span>VS</span></div>
 
         <div className="duel-card" onClick={() => handleChoice(card2, card1)}>
           {card2.image_url && (
@@ -132,9 +112,6 @@ function DuelView() {
           <div className="card-content">
             <h3>{card2.title}</h3>
             {card2.description && <p>{card2.description}</p>}
-          </div>
-          <div className="card-overlay">
-            <span className="choice-label">Click to Choose</span>
           </div>
         </div>
       </div>
@@ -150,4 +127,3 @@ function DuelView() {
 }
 
 export default DuelView;
-

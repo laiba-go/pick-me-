@@ -15,7 +15,7 @@ function SwipeCompleteView() {
       setLoading(true);
       const response = await getSessionState(sessionId);
       const session = response.data;
-      const smashed = session.smashed_cards || [];
+      const smashed = session.smashedCards || [];  // <-- camelCase
       
       setSmashedCards(Array.isArray(smashed) ? smashed : []);
     } catch (error) {
@@ -58,7 +58,7 @@ function SwipeCompleteView() {
   return (
     <div className="swipe-complete-view">
       <div className="complete-header">
-        <h1>🎉 First Round Complete!</h1>
+        <h1>You have seen all cards</h1>
         <p className="subtitle">You've selected {smashedCount} card{smashedCount !== 1 ? 's' : ''}</p>
       </div>
 

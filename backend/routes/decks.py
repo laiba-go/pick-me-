@@ -74,7 +74,6 @@ async def update_deck(deck_id: str, deck: DeckUpdate, db=Depends(get_db)):
         if not existing:
             raise HTTPException(status_code=404, detail="Deck not found")
         
-        # Build update query
         updates = []
         values = []
         param_count = 1
@@ -83,21 +82,26 @@ async def update_deck(deck_id: str, deck: DeckUpdate, db=Depends(get_db)):
             updates.append(f"title = ${param_count}")
             values.append(deck.title)
             param_count += 1
+        
         if deck.description is not None:
             updates.append(f"description = ${param_count}")
             values.append(deck.description)
             param_count += 1
         
+        # Просто добавляем updated_at — НЕ трогаем param_count!
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        
         if not updates:
             return dict(existing)
-        
-        updates.append("updated_at = CURRENT_TIMESTAMP")
-        values.append(deck_id)
-        param_count += 1
-        
+
+        # deck_id должен быть последним параметром
         query = f"UPDATE decks SET {', '.join(updates)} WHERE id = ${param_count} RETURNING *"
+        values.append(deck_id)
+
         row = await conn.fetchrow(query, *values)
         return dict(row)
+
+    
 
 
 @router.delete("/{deck_id}")

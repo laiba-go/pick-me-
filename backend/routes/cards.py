@@ -125,48 +125,56 @@ async def update_card(card_id: str, card: CardUpdate, db=Depends(get_db)):
         existing = await conn.fetchrow("SELECT * FROM cards WHERE id = $1", card_id)
         if not existing:
             raise HTTPException(status_code=404, detail="Card not found")
-        
+
         updates = []
         values = []
         param_count = 1
-        
+
         if card.title is not None:
             updates.append(f"title = ${param_count}")
             values.append(card.title)
             param_count += 1
+        
         if card.description is not None:
             updates.append(f"description = ${param_count}")
             values.append(card.description)
             param_count += 1
+        
         if card.image_url is not None:
             updates.append(f"image_url = ${param_count}")
             values.append(card.image_url)
             param_count += 1
+        
         if card.metadata is not None:
             updates.append(f"metadata = ${param_count}")
             values.append(json.dumps(card.metadata))
             param_count += 1
+
         if card.position is not None:
             updates.append(f"position = ${param_count}")
             values.append(card.position)
             param_count += 1
-        
+
         if not updates:
             return dict(existing)
-        
+
         updates.append("updated_at = CURRENT_TIMESTAMP")
+
         values.append(card_id)
-        param_count += 1
-        
+
         query = f"UPDATE cards SET {', '.join(updates)} WHERE id = ${param_count} RETURNING *"
+
         row = await conn.fetchrow(query, *values)
-        result = {k: v for k, v in row.items()}
+
+        result = dict(row)
         if isinstance(result.get("metadata"), str):
             try:
                 result["metadata"] = json.loads(result["metadata"])
             except:
                 result["metadata"] = {}
+
         return result
+
 
 
 @router.delete("/{card_id}")
