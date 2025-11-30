@@ -89,9 +89,10 @@ function DeckEditor() {
 
       if (card.isNew) {
         const response = await createCard({ ...card, deck_id: deckId });
-        const newCards = [...cards];
-        newCards[index] = response.data;
-        setCards(newCards);
+        // После создания новой карточки перезагружаем список карточек
+        // чтобы получить правильный порядок и все данные
+        const cardsRes = await getCards(deckId);
+        setCards(cardsRes.data);
       } else {
         const response = await updateCard(card.id, card);
         const newCards = [...cards];

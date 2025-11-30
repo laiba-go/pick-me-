@@ -10,6 +10,15 @@
 .complete-header {
   text-align: center;
   margin-bottom: 3rem;
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+}
+
+.complete-header .btn {
+  position: absolute;
+  left: 0;
+  top: 0;
 }
 
 .complete-header h1 {

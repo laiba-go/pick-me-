@@ -39,6 +39,8 @@ export const deleteCard = (id) => api.delete(`/cards/${id}`);
 // Sessions
 export const createSession = (deckId, data = {}) => api.post(`/sessions/deck/${deckId}`, data);
 
+export const getActiveSession = (deckId) => api.get(`/sessions/deck/${deckId}/active`);
+
 export const getSessionState = (sessionId) => api.get(`/sessions/${sessionId}/state`);
 
 export const recordDecision = (sessionId, cardId, decision, round = 1) => 
@@ -48,9 +50,14 @@ export const getDuelPair = (sessionId) => api.post(`/sessions/${sessionId}/duel`
 
 export const startDuel = (sessionId) => api.post(`/sessions/${sessionId}/start-duel`);
 
+export const returnToSwipe = (sessionId) => api.post(`/sessions/${sessionId}/return-to-swipe`);
+
 export const reswipeSession = (sessionId) => api.post(`/sessions/${sessionId}/reswipe`);
 
 export const finishSession = (sessionId) => api.post(`/sessions/${sessionId}/finish`);
+
+export const restoreCard = (sessionId, cardId) => 
+  api.post(`/sessions/${sessionId}/restore`, { card_id: cardId });
 
 export default api;
 

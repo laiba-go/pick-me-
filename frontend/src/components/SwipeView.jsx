@@ -46,11 +46,20 @@ function SwipeView() {
         setSessionId(urlSessionId);
         await loadSessionState(urlSessionId);
       } else if (deckId) {
-        // Create new session
+        // createSession автоматически вернет существующую активную сессию, если она есть
+        // или создаст новую, если активной нет
         const sessionResponse = await createSession(deckId, { mode: 'swipe' });
-        const newSessionId = sessionResponse.data.id;
-        setSessionId(newSessionId);
-        await loadSessionState(newSessionId);
+        const sessionIdToUse = sessionResponse.data.id;
+        const sessionMode = sessionResponse.data.mode;
+        
+        // Если сессия в режиме duel, перенаправляем в окно выбора
+        if (sessionMode === 'duel') {
+          navigate(`/session/${sessionIdToUse}/swipe-complete`);
+          return;
+        }
+        
+        setSessionId(sessionIdToUse);
+        await loadSessionState(sessionIdToUse);
       }
     } catch (error) {
       console.error('Error initializing session:', error);
@@ -188,8 +197,19 @@ function SwipeView() {
           ← Back
         </button>
         <h2>Swipe to Choose</h2>
-        <div className="progress">
-          {remainingCards.length} cards remaining
+        <div className="header-right">
+          <div className="progress">
+            {remainingCards.length} cards remaining
+          </div>
+          {sessionId && (
+            <button 
+              className="btn btn-icon trash-btn" 
+              onClick={() => navigate(`/session/${sessionId}/trash`)}
+              title="View trash"
+            >
+              🗑️
+            </button>
+          )}
         </div>
       </div>
 

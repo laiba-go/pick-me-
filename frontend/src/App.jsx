@@ -6,6 +6,7 @@ import SwipeView from './components/SwipeView';
 import SwipeCompleteView from './components/SwipeCompleteView';
 import DuelView from './components/DuelView';
 import WinnerView from './components/WinnerView';
+import TrashView from './components/TrashView';
 import './App.css';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
             <Route path="/session/:sessionId/reswipe" element={<SwipeView />} />
             <Route path="/session/:sessionId/duel" element={<DuelView />} />
             <Route path="/session/:sessionId/winner" element={<WinnerView />} />
+            <Route path="/session/:sessionId/trash" element={<TrashView />} />
           </Routes>
         </main>
       </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getSessionState, startDuel, reswipeSession } from '../api';
+import { getSessionState, startDuel, reswipeSession, returnToSwipe } from '../api';
 import './SwipeCompleteView.css';
 
 function SwipeCompleteView() {
@@ -8,6 +8,7 @@ function SwipeCompleteView() {
   const navigate = useNavigate();
 
   const [smashedCards, setSmashedCards] = useState([]);
+  const [sessionMode, setSessionMode] = useState('swipe');
   const [loading, setLoading] = useState(true);
 
   const loadSessionState = useCallback(async () => {
@@ -15,9 +16,18 @@ function SwipeCompleteView() {
       setLoading(true);
       const response = await getSessionState(sessionId);
       const session = response.data;
-      const smashed = session.smashedCards || [];  // <-- camelCase
       
-      setSmashedCards(Array.isArray(smashed) ? smashed : []);
+      setSessionMode(session.mode || 'swipe');
+      
+      // Если сессия в режиме duel, используем remainingCards для отображения
+      // так как в батле smashed карты уже перешли в remaining
+      if (session.mode === 'duel') {
+        const remaining = session.remainingCards || [];
+        setSmashedCards(Array.isArray(remaining) ? remaining : []);
+      } else {
+        const smashed = session.smashedCards || [];
+        setSmashedCards(Array.isArray(smashed) ? smashed : []);
+      }
     } catch (error) {
       console.error('Error loading session state:', error);
     } finally {
@@ -31,11 +41,18 @@ function SwipeCompleteView() {
 
   const handleContinueToDuel = async () => {
     try {
-      await startDuel(sessionId);
-      navigate(`/session/${sessionId}/duel`);
+      // Если уже в режиме duel, просто переходим к батлу
+      if (sessionMode === 'duel') {
+        navigate(`/session/${sessionId}/duel`);
+      } else {
+        // Переключаем в режим duel
+        await startDuel(sessionId);
+        navigate(`/session/${sessionId}/duel`);
+      }
     } catch (error) {
       console.error('Error starting duel:', error);
-      alert('Failed to start duel mode');
+      const errorMessage = error.response?.data?.detail || 'Failed to start duel mode';
+      alert(errorMessage);
     }
   };
 
@@ -49,6 +66,16 @@ function SwipeCompleteView() {
     }
   };
 
+  const handleReturnToSwipe = async () => {
+    try {
+      await returnToSwipe(sessionId);
+      navigate(`/session/${sessionId}/reswipe`);
+    } catch (error) {
+      console.error('Error returning to swipe:', error);
+      alert('Failed to return to swipe mode');
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
@@ -58,8 +85,16 @@ function SwipeCompleteView() {
   return (
     <div className="swipe-complete-view">
       <div className="complete-header">
-        <h1>You have seen all cards</h1>
-        <p className="subtitle">You've selected {smashedCount} card{smashedCount !== 1 ? 's' : ''}</p>
+        <button className="btn btn-secondary" onClick={() => navigate('/')}>
+          ← Go Home
+        </button>
+        <h1>{sessionMode === 'duel' ? 'Battle Mode' : 'You have seen all cards'}</h1>
+        <p className="subtitle">
+          {sessionMode === 'duel' 
+            ? `${smashedCount} card${smashedCount !== 1 ? 's' : ''} remaining for battle`
+            : `You've selected ${smashedCount} card${smashedCount !== 1 ? 's' : ''}`
+          }
+        </p>
       </div>
 
       <div className="complete-content">
@@ -84,18 +119,37 @@ function SwipeCompleteView() {
           <div className="choice-options">
             <h2>What would you like to do next?</h2>
             <div className="options-grid">
-              <div className="option-card" onClick={handleContinueToDuel}>
-                <div className="option-icon">⚔️</div>
-                <h3>Battle Mode</h3>
-                <p>Compare cards head-to-head in 1v1 battles</p>
-                <button className="btn btn-primary">Start Battles</button>
-              </div>
-              <div className="option-card" onClick={handleReswipeSmashed}>
-                <div className="option-icon">🔄</div>
-                <h3>Reswipe Selected</h3>
-                <p>Go through your {smashedCount} selected cards again</p>
-                <button className="btn btn-secondary">Reswipe</button>
-              </div>
+              {sessionMode === 'duel' ? (
+                <>
+                  <div className="option-card" onClick={handleContinueToDuel}>
+                    <div className="option-icon">⚔️</div>
+                    <h3>Continue Battle</h3>
+                    <p>Continue comparing {smashedCount} cards in 1v1 battles</p>
+                    <button className="btn btn-primary">Continue Battles</button>
+                  </div>
+                  <div className="option-card" onClick={handleReturnToSwipe}>
+                    <div className="option-icon">🔄</div>
+                    <h3>Return to Swipe</h3>
+                    <p>Go back to swiping through {smashedCount} cards</p>
+                    <button className="btn btn-secondary">Return to Swipe</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="option-card" onClick={handleContinueToDuel}>
+                    <div className="option-icon">⚔️</div>
+                    <h3>Battle Mode</h3>
+                    <p>Compare cards head-to-head in 1v1 battles</p>
+                    <button className="btn btn-primary">Start Battles</button>
+                  </div>
+                  <div className="option-card" onClick={handleReswipeSmashed}>
+                    <div className="option-icon">🔄</div>
+                    <h3>Reswipe Selected</h3>
+                    <p>Go through your {smashedCount} selected cards again</p>
+                    <button className="btn btn-secondary">Reswipe</button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
